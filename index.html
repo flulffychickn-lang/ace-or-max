@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#10162b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ACE OR MAX?">
+<title>ACE OR MAX? — WHO'S WHO?</title>
+<style>
+*{box-sizing:border-box}
+:root{--pink:#ff3b72;--yellow:#ffd43b;--blue:#39a9ff;--green:#48d597}
+body{margin:0;min-height:100vh;font-family:Arial,Helvetica,sans-serif;color:#fff;overflow-x:hidden;
+background:radial-gradient(circle at 12% 15%,rgba(57,169,255,.42) 0 7%,transparent 8%),radial-gradient(circle at 88% 12%,rgba(255,212,59,.38) 0 6%,transparent 7%),radial-gradient(circle at 18% 88%,rgba(72,213,151,.3) 0 8%,transparent 9%),radial-gradient(circle at 90% 84%,rgba(255,59,114,.34) 0 8%,transparent 9%),linear-gradient(135deg,#10162b,#24133c 48%,#10243c)}
+body:before{content:"★  ●  ★  ●  ★  ●  ★  ●";position:fixed;inset:0;z-index:-1;pointer-events:none;color:rgba(255,255,255,.06);font-size:42px;line-height:2.5;letter-spacing:35px;transform:rotate(-8deg) scale(1.2)}
+header{text-align:center;padding:20px 15px 8px}
+h1{margin:0;font-size:clamp(32px,5vw,60px);font-weight:1000;letter-spacing:2px;text-shadow:0 5px 0 rgba(0,0,0,.25)}
+h1 span{color:var(--yellow)}
+.subtitle{margin-top:5px;font-size:18px;font-weight:900}
+.audio-bar{display:flex;justify-content:center;gap:9px;margin:4px auto 12px;flex-wrap:wrap}
+.audio-btn{border:2px solid rgba(255,255,255,.2);border-radius:999px;padding:9px 15px;background:rgba(15,20,35,.8);color:#fff;font-weight:1000;cursor:pointer}
+.app{width:min(1100px,94vw);margin:auto;padding-bottom:30px}
+.panel{background:rgba(18,24,40,.94);border:3px solid rgba(255,255,255,.12);border-radius:28px;padding:22px;box-shadow:0 18px 55px rgba(0,0,0,.35)}
+.setup{text-align:center;padding:38px 22px}.setup h2{margin:0 0 10px;font-size:30px;color:var(--yellow)}
+.setup p{color:#dce3ee;line-height:1.5;max-width:700px;margin:0 auto 22px}
+.file-input{display:none}
+.file-label,.btn{display:inline-block;border:0;border-radius:16px;padding:14px 23px;font-size:17px;font-weight:1000;cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.25)}
+.primary{background:var(--pink);color:#fff}.green{background:var(--green);color:#092016}.blue{background:var(--blue);color:#071a2a}
+.info{margin:14px 0;font-weight:900}.photo-list{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px auto;max-width:900px}
+.photo-item{background:#242d43;border-radius:16px;padding:8px;border:2px solid rgba(255,255,255,.1)}
+.photo-item img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;display:block}
+.photo-item select{width:100%;margin-top:8px;padding:9px;border-radius:9px;background:#111827;color:#fff;border:1px solid #59657a;font-weight:900}
+.game{text-align:center}.game-title{font-size:clamp(28px,5vw,54px);font-weight:1000;letter-spacing:2px;margin-bottom:15px;color:var(--yellow)}
+.photo-stage{width:min(850px,92vw);height:min(62vh,600px);margin:auto;background:#fff;border:7px solid var(--yellow);border-radius:28px;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 0 0 5px rgba(255,59,114,.45),0 15px 35px rgba(0,0,0,.35)}
+.photo-stage img{width:100%;height:100%;object-fit:contain;display:block}
+.choose{display:grid;grid-template-columns:1fr 1fr;gap:20px;width:min(850px,92vw);margin:16px auto 0}
+.side{border:0;border-radius:20px;padding:16px 12px;font-size:clamp(25px,4vw,48px);font-weight:1000;cursor:pointer;color:#fff;min-height:78px;box-shadow:0 6px 0 rgba(0,0,0,.25)}
+.ace{background:var(--blue)}.max{background:var(--pink)}.side:hover{filter:brightness(1.12)}
+.next-wrap{text-align:center;margin-top:18px}.next{min-width:min(500px,85vw);font-size:clamp(20px,3vw,30px);padding:16px 25px;background:var(--yellow);color:#201900}.next:disabled{opacity:.38;cursor:not-allowed;filter:grayscale(.7);transform:none}
+.message{min-height:30px;margin-top:14px;font-size:21px;font-weight:1000}.correct{outline:6px solid var(--green);box-shadow:0 0 25px rgba(72,213,151,.55)}.wrong{outline:6px solid var(--pink)}
+.hidden{display:none!important}
+.presentation{display:none;position:fixed;inset:0;background:radial-gradient(circle at 10% 20%,rgba(57,169,255,.22),transparent 20%),radial-gradient(circle at 90% 20%,rgba(255,212,59,.2),transparent 20%),linear-gradient(135deg,#10162b,#24133c 50%,#10243c);z-index:50;flex-direction:column;align-items:center;justify-content:space-between;padding:18px 22px 24px}
+.presentation.active{display:flex}.presentation h2{margin:0;font-size:clamp(28px,4.5vw,58px);font-weight:1000;letter-spacing:2px;text-align:center}
+.presentation-photo{flex:1;min-height:0;width:min(1200px,94vw);margin:10px auto;background:#fff;border:7px solid var(--yellow);border-radius:25px;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 0 0 5px rgba(255,59,114,.4),0 15px 40px rgba(0,0,0,.4)}
+.presentation-photo img{width:100%;height:100%;object-fit:contain}
+.presentation-sides{width:min(1200px,94vw);display:grid;grid-template-columns:1fr 1fr;gap:18px}.presentation-side{font-size:clamp(25px,4vw,55px);font-weight:1000;padding:12px 20px;border-radius:18px;text-align:center;box-shadow:0 5px 0 rgba(0,0,0,.25)}
+.presentation-side.ace{background:var(--blue)}.presentation-side.max{background:var(--pink)}
+.exit{position:absolute;right:18px;top:15px;padding:10px 15px;border-radius:999px;background:rgba(15,20,35,.9);color:#fff;border:2px solid rgba(255,255,255,.2);font-weight:900;cursor:pointer}
+@media(max-width:700px){.photo-list{grid-template-columns:repeat(2,1fr)}.photo-stage{height:55vh}}
+@media(orientation:landscape) and (max-height:550px){.presentation{padding:7px 15px 9px}.presentation h2{font-size:clamp(20px,4vw,38px)}.presentation-photo{margin:5px auto}.presentation-sides{gap:10px}.presentation-side{padding:7px;font-size:clamp(20px,4vw,36px)}}
+
+/* iPhone / mobile improvements */
+html{background:#10162b}
+button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+@media(max-width:700px){
+  body{min-height:100svh}
+  header{padding:12px 10px 4px}
+  h1{font-size:clamp(26px,8vw,42px);line-height:1.05}
+  .subtitle{font-size:14px}
+  .audio-bar{margin:4px auto 8px}
+  .audio-btn{padding:8px 12px;font-size:13px}
+  .app{width:96vw;padding-bottom:18px}
+  .panel{border-radius:20px;padding:15px}
+  .setup{padding:24px 12px}
+  .setup h2{font-size:25px}
+  .setup p{font-size:14px}
+  .file-label,.btn{min-height:48px;padding:13px 18px;font-size:16px}
+  .photo-list{grid-template-columns:repeat(2,1fr);gap:8px}
+  .photo-item{padding:6px;border-radius:12px}
+  .photo-item select{font-size:14px}
+  .game-title{font-size:25px}
+  .photo-stage{width:94vw;height:55svh;max-height:520px;border-width:5px;border-radius:18px}
+  .choose{gap:8px}
+  .side{min-height:58px;font-size:24px}
+  .message{font-size:14px}
+  .next-wrap{gap:7px}
+  .presentation{padding:10px 8px max(12px,env(safe-area-inset-bottom));}
+  .presentation h2{font-size:clamp(22px,6vw,36px);line-height:1.05;padding:0 38px}
+  .presentation-photo{width:96vw;min-height:0;height:auto;aspect-ratio:16/10;margin:7px auto;border-width:5px;border-radius:16px}
+  .presentation-sides{width:96vw;gap:8px}
+  .presentation-side{font-size:clamp(24px,7vw,42px);padding:10px 8px;border-radius:14px}
+  .answer-banner{font-size:clamp(22px,6vw,34px);line-height:1.05}
+  .presentation .next{min-width:210px}
+  .exit{top:8px;right:8px;padding:8px 11px;font-size:13px}
+}
+@media(max-width:700px) and (orientation:portrait){
+  .presentation{justify-content:center;gap:10px}
+  .presentation-photo{width:92vw;aspect-ratio:4/5}
+  .presentation-sides{width:92vw}
+}
+@media(max-width:700px) and (orientation:landscape){
+  header{display:none}
+  .presentation{padding:5px 10px 8px}
+  .presentation h2{font-size:clamp(20px,5vw,30px)}
+  .presentation-photo{width:min(82vw,1000px);height:58svh;aspect-ratio:auto;margin:4px auto}
+  .presentation-sides{width:min(82vw,1000px);gap:8px}
+  .presentation-side{font-size:clamp(20px,5vw,34px);padding:6px}
+  .answer-banner{font-size:clamp(20px,4.5vw,30px)}
+  .presentation .next{min-height:42px;padding:8px 18px;font-size:15px}
+}
+
+</style>
+</head>
+<body>
+<header>
+<h1>🎈 ACE OR MAX? <span>WHO’S WHO?</span></h1>
+<div class="subtitle">🎉 Pick a side — ACE or MAX!</div>
+</header>
+
+<audio id="backgroundMusic" src="ace_or_max_kids_game_loop.wav" loop preload="auto"></audio>
+<div class="audio-bar">
+<button class="audio-btn" id="musicButton" type="button">🎵 MUSIC OFF</button>
+<button class="audio-btn" id="soundButton" type="button">🔊 SOUND ON</button>
+</div>
+
+<main class="app">
+<section class="panel setup" id="setup">
+<h2>📷 ADD YOUR PICTURES</h2>
+<p>Add the pictures you want to use. Each picture can be assigned to <b>ACE</b> or <b>MAX</b>. The answer stays hidden in Presentation Mode.</p>
+<input class="file-input" type="file" id="photoInput" accept="image/*" multiple>
+<label class="file-label primary" for="photoInput">📷 ADD PICTURES</label>
+<div class="info" id="info">0 pictures added</div>
+<div class="photo-list" id="photoList"></div>
+<button class="btn green" id="startButton" disabled>🎬 START GAME</button>
+</section>
+
+<section class="panel game hidden" id="game">
+<div class="game-title">🎈 ACE OR MAX? — WHO’S WHO?</div>
+<div class="photo-stage"><img id="gameImage" alt="Game photo"></div>
+<div class="choose">
+<button class="side ace" id="aceButton">ACE</button>
+<button class="side max" id="maxButton">MAX</button>
+</div>
+<div class="message" id="message">Look at the photo and choose ACE or MAX.</div>
+<div class="next-wrap"><button class="btn next" id="nextButton">➡️ NEXT PHOTO</button></div>
+<div class="next-wrap"><button class="btn" id="presentationButton">📺 PRESENTATION MODE</button> <button class="btn" id="changeButton">🗑️ CHANGE PICTURES</button></div>
+</section>
+</main>
+
+<section class="presentation" id="presentation">
+<button class="exit" id="exitPresentation">✕ EXIT</button>
+<h2>🎈 ACE OR MAX? — WHO’S WHO?</h2>
+<div class="presentation-photo"><img id="presentationImage" alt="Photo to guess"></div>
+<div class="presentation-sides"><div class="presentation-side ace" id="presentationAce">ACE</div><div class="presentation-side max" id="presentationMax">MAX</div></div>
+<div class="answer-banner hidden" id="answerBanner">🎉 THE ANSWER IS...</div>
+<button class="btn next" id="presentationNext">🎯 REVEAL ANSWER</button>
+</section>
+
+<script>
+(() => {
+"use strict";
+const photoInput=document.getElementById("photoInput"),photoList=document.getElementById("photoList"),info=document.getElementById("info"),startButton=document.getElementById("startButton"),setup=document.getElementById("setup"),game=document.getElementById("game"),gameImage=document.getElementById("gameImage"),aceButton=document.getElementById("aceButton"),maxButton=document.getElementById("maxButton"),nextButton=document.getElementById("nextButton"),message=document.getElementById("message"),presentationButton=document.getElementById("presentationButton"),changeButton=document.getElementById("changeButton"),presentation=document.getElementById("presentation"),presentationImage=document.getElementById("presentationImage"),presentationNext=document.getElementById("presentationNext"),exitPresentation=document.getElementById("exitPresentation"),backgroundMusic=document.getElementById("backgroundMusic"),musicButton=document.getElementById("musicButton"),soundButton=document.getElementById("soundButton"),presentationAce=document.getElementById("presentationAce"),presentationMax=document.getElementById("presentationMax"),answerBanner=document.getElementById("answerBanner");
+let photos=[],order=[],current=0,answered=false,presentationRevealed=false,soundOn=true,musicOn=false,audioContext=null;
+
+function cleanup(){photos.forEach(p=>URL.revokeObjectURL(p.url))}
+function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function ensureAudio(){if(!audioContext)audioContext=new(window.AudioContext||window.webkitAudioContext)();if(audioContext.state==="suspended")audioContext.resume();return audioContext}
+function tone(freq,duration,type="sine",volume=.12,delay=0){if(!soundOn)return;const c=ensureAudio(),n=c.currentTime+delay,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(freq,n);g.gain.setValueAtTime(.0001,n);g.gain.exponentialRampToValueAtTime(volume,n+.015);g.gain.exponentialRampToValueAtTime(.0001,n+duration);o.connect(g);g.connect(c.destination);o.start(n);o.stop(n+duration+.03)}
+function buttonSound(){tone(520,.08,"square",.07);tone(780,.1,"square",.05,.06)}
+function correctSound(){tone(523,.12,"triangle",.13);tone(659,.12,"triangle",.13,.1);tone(784,.2,"triangle",.14,.2)}
+function wrongSound(){tone(330,.14,"sawtooth",.09);tone(240,.22,"sawtooth",.08,.13)}
+async function startMusic(){try{ensureAudio();backgroundMusic.volume=.2;await backgroundMusic.play();musicOn=true;musicButton.textContent="🎵 MUSIC ON"}catch(e){musicOn=false;musicButton.textContent="🎵 MUSIC OFF"}}
+function stopMusic(){backgroundMusic.pause();backgroundMusic.currentTime=0;musicOn=false;musicButton.textContent="🎵 MUSIC OFF"}
+function updateSetup(){info.textContent=`${photos.length} picture${photos.length===1?"":"s"} added`;startButton.disabled=photos.length<2||photos.some(p=>!p.answer);photoList.innerHTML="";photos.forEach((p,i)=>{const item=document.createElement("div");item.className="photo-item";const img=document.createElement("img");img.src=p.url;img.alt=`Picture ${i+1}`;const select=document.createElement("select");select.setAttribute("aria-label",`Answer for picture ${i+1}`);[["","Choose answer..."],["ACE","ACE"],["MAX","MAX"]].forEach(([v,l])=>{const o=document.createElement("option");o.value=v;o.textContent=l;select.appendChild(o)});select.value=p.answer;select.addEventListener("change",()=>{p.answer=select.value;buttonSound();updateStartState()});item.append(img,select);photoList.appendChild(item)})}
+function updateStartState(){startButton.disabled=photos.length<2||photos.some(p=>!p.answer)}
+photoInput.addEventListener("change",()=>{cleanup();photos=Array.from(photoInput.files||[]).filter(f=>f.type.startsWith("image/")).map(file=>({url:URL.createObjectURL(file),answer:""}));updateSetup();if(photos.length)buttonSound()})
+function startGame(){
+  if(photos.length<2||photos.some(p=>!p.answer))return;
+  ensureAudio();
+  startMusic();
+  order=shuffle(photos.map((_,i)=>i));
+  current=0;
+  setup.classList.add("hidden");
+  game.classList.remove("hidden");
+  showCurrent();
+  updateNextButton();
+  buttonSound();
+}
+function showCurrent(){
+  answered=false;
+  presentationRevealed=false;
+  resetPresentationReveal();
+  aceButton.classList.remove("correct","wrong");
+  maxButton.classList.remove("correct","wrong");
+  gameImage.src=photos[order[current]].url;
+  message.textContent="Look at the photo and choose ACE or MAX.";
+  updateNextButton();
+}
+function answer(choice){if(answered)return;ensureAudio();answered=true;const p=photos[order[current]],correct=choice===p.answer;if(choice==="ACE"){aceButton.classList.add(correct?"correct":"wrong");if(!correct)maxButton.classList.add("correct")}else{maxButton.classList.add(correct?"correct":"wrong");if(!correct)aceButton.classList.add("correct")}if(correct){message.textContent="🎉 CORRECT! Nice guess!";correctSound()}else{message.textContent=`❌ WRONG! The answer is ${p.answer}.`;wrongSound()}}
+function updateNextButton(){
+  const atLast = current >= order.length - 1;
+  nextButton.disabled = atLast;
+  nextButton.textContent = atLast ? "🏁 LAST PHOTO" : "➡️ NEXT PHOTO";
+  updatePresentationButton();
+}
+
+function nextPhoto(){
+  if(current >= order.length - 1){
+    message.textContent = "🏁 You have reached the last photo!";
+    return;
+  }
+  ensureAudio();
+  current++;
+  showCurrent();
+  buttonSound();
+  syncPresentation();
+  updateNextButton();
+}
+async function enterPresentation(){
+  ensureAudio();
+  startMusic();
+  presentation.classList.add("active");
+  document.body.style.overflow="hidden";
+  syncPresentation();
+  buttonSound();
+  try{
+    if(document.documentElement.requestFullscreen && !document.fullscreenElement){
+      await document.documentElement.requestFullscreen();
+    }
+  }catch(e){}
+  try{
+    if(screen.orientation && screen.orientation.lock){
+      await screen.orientation.lock("landscape");
+    }
+  }catch(e){}
+}
+function syncPresentation(){
+  if(order.length){
+    presentationImage.src=photos[order[current]].url;
+    resetPresentationReveal();
+  }
+}
+function resetPresentationReveal(){
+  presentationRevealed=false;
+  presentationAce.classList.remove("answer","dim");
+  presentationMax.classList.remove("answer","dim");
+  answerBanner.classList.add("hidden");
+  updatePresentationButton();
+}
+function revealPresentationAnswer(){
+  if(!order.length)return;
+  const answer=photos[order[current]].answer;
+  presentationRevealed=true;
+  answerBanner.textContent=`🎉 THE ANSWER IS ${answer}!`;
+  answerBanner.classList.remove("hidden");
+  if(answer==="ACE"){
+    presentationAce.classList.add("answer");
+    presentationMax.classList.add("dim");
+  }else{
+    presentationMax.classList.add("answer");
+    presentationAce.classList.add("dim");
+  }
+  presentationNext.textContent=current >= order.length-1 ? "🏁 LAST PHOTO" : "➡️ NEXT PHOTO";
+  ensureAudio();
+  correctSound();
+}
+function updatePresentationButton(){
+  if(!order.length)return;
+  if(!presentationRevealed){
+    presentationNext.disabled=false;
+    presentationNext.textContent="🎯 REVEAL ANSWER";
+  }else if(current >= order.length-1){
+    presentationNext.disabled=true;
+    presentationNext.textContent="🏁 LAST PHOTO";
+  }else{
+    presentationNext.disabled=false;
+    presentationNext.textContent="➡️ NEXT PHOTO";
+  }
+}
+function nextPresentation(){
+  if(!presentationRevealed){
+    revealPresentationAnswer();
+    return;
+  }
+  if(current >= order.length - 1)return;
+  nextPhoto();
+  syncPresentation();
+}
+async function exitPresentationMode(){
+  presentation.classList.remove("active");
+  document.body.style.overflow="";
+  try{
+    if(document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
+  }catch(e){}
+  buttonSound();
+}
+function changePictures(){if(!confirm("Remove the current pictures and choose new ones?"))return;cleanup();photos=[];order=[];current=0;photoInput.value="";game.classList.add("hidden");setup.classList.remove("hidden");updateSetup();buttonSound()}
+musicButton.addEventListener("click",async()=>{if(musicOn){stopMusic();buttonSound()}else await startMusic()});
+soundButton.addEventListener("click",()=>{soundOn=!soundOn;soundButton.textContent=soundOn?"🔊 SOUND ON":"🔇 SOUND OFF";if(soundOn)buttonSound()});
+startButton.addEventListener("click",startGame);aceButton.addEventListener("click",()=>answer("ACE"));maxButton.addEventListener("click",()=>answer("MAX"));nextButton.addEventListener("click",nextPhoto);presentationButton.addEventListener("click",enterPresentation);presentationNext.addEventListener("click",nextPresentation);exitPresentation.addEventListener("click",exitPresentationMode);changeButton.addEventListener("click",changePictures);
+window.addEventListener("beforeunload",()=>{cleanup();stopMusic()});updateSetup();
+})();
+</script>
+</body>
+</html>
