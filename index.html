@@ -116,6 +116,49 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 @media(max-width:700px){.event-columns{grid-template-columns:1fr}.event-box{padding:13px}.event-box h3{font-size:22px}.event-actions .btn,.event-actions .small-btn{width:100%}}
 
 
+
+/* Smart presentation sizing */
+.presentation-photo.landscape{
+  width:min(1200px,94vw);
+}
+.presentation-photo.landscape img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.presentation-photo.portrait{
+  width:min(55vw,650px);
+}
+.presentation-photo.portrait img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+@media(max-width:700px) and (orientation:landscape){
+  .presentation{
+    padding:5px 8px max(8px,env(safe-area-inset-bottom));
+  }
+  .presentation h2{
+    font-size:clamp(20px,5vw,30px);
+  }
+  .presentation-photo.landscape{
+    width:96vw;
+    height:62svh;
+  }
+  .presentation-photo.portrait{
+    width:min(48vw,600px);
+    height:62svh;
+  }
+}
+@media(max-width:700px) and (orientation:portrait){
+  .presentation-photo.landscape{
+    width:94vw;
+  }
+  .presentation-photo.portrait{
+    width:72vw;
+  }
+}
+
 /* Final mobile fixes */
 .volume-control{
   display:inline-flex;
@@ -172,7 +215,7 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   body{overflow-x:hidden;overflow-y:auto}
   .audio-bar{width:100%;padding:4px 8px;gap:7px}
   .volume-control{width:min(94vw,360px)}
-  .volume-control input{width:min(68vw,250px)}
+  .volume-control input{width:min(68vw,250px);min-height:32px}
   .photo-list{
     grid-template-columns:repeat(2,minmax(0,1fr));
     gap:8px;
@@ -235,7 +278,7 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
       </div>
 
       <div class="event-box max-box">
-        <h3>⬜ MAX PICTURES</h3>
+        <h3>🩷 MAX PICTURES</h3>
         <input class="file-input" type="file" id="maxInput" accept="image/*" multiple>
         <label class="file-label primary" for="maxInput">📷 ADD MAX PICTURES</label>
         <div class="photo-count" id="maxCount">0 pictures</div>
@@ -305,7 +348,7 @@ soundButton=document.getElementById("soundButton"), musicVolume=document.getElem
 presentationMax=document.getElementById("presentationMax"), answerBanner=document.getElementById("answerBanner");
 
 let photos=[],order=[],current=0,answered=false,presentationRevealed=false;
-let soundOn=true,musicOn=false,audioContext=null,db=null;
+let soundOn=true,musicOn=false,audioContext=null,db=null,musicSource=null,musicGain=null;
 const DB_NAME="aceOrMaxEventDB",DB_VERSION=1,STORE="photos";
 
 function setStatus(text,good=false){storageStatus.textContent=text;storageStatus.style.color=good?"var(--green)":"#dbe5f2"}
@@ -360,13 +403,43 @@ aceInput.onchange=async()=>{await addFiles(aceInput.files,"ACE");aceInput.value=
 maxInput.onchange=async()=>{await addFiles(maxInput.files,"MAX");maxInput.value=""};
 
 function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function ensureAudio(){if(!audioContext)audioContext=new(window.AudioContext||window.webkitAudioContext)();if(audioContext.state==="suspended")audioContext.resume();return audioContext}
+function ensureAudio(){
+  if(!audioContext){
+    audioContext=new(window.AudioContext||window.webkitAudioContext)();
+  }
+  if(!musicSource){
+    musicSource=audioContext.createMediaElementSource(backgroundMusic);
+    musicGain=audioContext.createGain();
+    musicSource.connect(musicGain);
+    musicGain.connect(audioContext.destination);
+  }
+  if(audioContext.state==="suspended")audioContext.resume();
+  return audioContext;
+}
 function tone(f,d,type="sine",v=.12,delay=0){if(!soundOn)return;const c=ensureAudio(),n=c.currentTime+delay,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(f,n);g.gain.setValueAtTime(.0001,n);g.gain.exponentialRampToValueAtTime(v,n+.015);g.gain.exponentialRampToValueAtTime(.0001,n+d);o.connect(g);g.connect(c.destination);o.start(n);o.stop(n+d+.03)}
 function buttonSound(){tone(520,.08,"square",.07);tone(780,.1,"square",.05,.06)}
 function correctSound(){tone(523,.12,"triangle",.13);tone(659,.12,"triangle",.13,.1);tone(784,.2,"triangle",.14,.2)}
 function wrongSound(){tone(330,.14,"sawtooth",.09);tone(240,.22,"sawtooth",.08,.13)}
-async function startMusic(){try{ensureAudio();backgroundMusic.volume=Number(musicVolume.value)/100;await backgroundMusic.play();musicOn=true;musicButton.textContent="🎵 MUSIC ON"}catch(e){musicOn=false}}
-function stopMusic(){backgroundMusic.pause();backgroundMusic.currentTime=0;musicOn=false;musicButton.textContent="🎵 MUSIC OFF"}
+async function startMusic(){
+  try{
+    ensureAudio();
+    const level=Number(musicVolume.value)/100;
+    if(musicGain)musicGain.gain.setValueAtTime(level,audioContext.currentTime);
+    await audioContext.resume();
+    await backgroundMusic.play();
+    musicOn=true;
+    musicButton.textContent="🎵 MUSIC ON";
+  }catch(e){
+    musicOn=false;
+    musicButton.textContent="🎵 MUSIC OFF";
+  }
+}
+function stopMusic(){
+  backgroundMusic.pause();
+  backgroundMusic.currentTime=0;
+  musicOn=false;
+  musicButton.textContent="🎵 MUSIC OFF";
+}
 
 function startGame(){
   if(startButton.disabled)return;ensureAudio();startMusic();order=shuffle(photos.map((_,i)=>i));current=0;
@@ -394,7 +467,17 @@ async function enterPresentation(){
   try{if(document.documentElement.requestFullscreen&&!document.fullscreenElement)await document.documentElement.requestFullscreen()}catch(e){}
   try{if(screen.orientation?.lock)await screen.orientation.lock("landscape")}catch(e){}
 }
-function syncPresentation(){if(order.length){presentationImage.src=photos[order[current]].url;resetPresentationReveal()}}
+function syncPresentation(){
+  if(!order.length)return;
+  const box=presentationImage.parentElement;
+  const item=photos[order[current]];
+  presentationImage.onload=()=>{
+    box.classList.remove("landscape","portrait");
+    box.classList.add(presentationImage.naturalWidth>=presentationImage.naturalHeight?"landscape":"portrait");
+  };
+  presentationImage.src=item.url;
+  resetPresentationReveal();
+}
 function resetPresentationReveal(){presentationRevealed=false;presentationAce.classList.remove("answer","dim");presentationMax.classList.remove("answer","dim");answerBanner.classList.add("hidden");updatePresentationButton()}
 function revealPresentationAnswer(){
   const answer=photos[order[current]].answer;presentationRevealed=true;answerBanner.textContent=`🎉 THE ANSWER IS ${answer}!`;answerBanner.classList.remove("hidden");
@@ -411,7 +494,15 @@ async function exitPresentationMode(){presentation.classList.remove("active");do
 
 async function changePictures(){game.classList.add("hidden");setup.classList.remove("hidden");await loadSaved();buttonSound()}
 musicButton.onclick=async()=>{if(musicOn){stopMusic();buttonSound()}else await startMusic()};
-musicVolume.oninput=()=>{backgroundMusic.volume=Number(musicVolume.value)/100};
+musicVolume.oninput=()=>{
+  const level=Number(musicVolume.value)/100;
+  if(!audioContext){
+    backgroundMusic.volume=level;
+    return;
+  }
+  if(!musicGain)ensureAudio();
+  musicGain.gain.setValueAtTime(level,audioContext.currentTime);
+};
 soundButton.onclick=()=>{soundOn=!soundOn;soundButton.textContent=soundOn?"🔊 SOUND ON":"🔇 SOUND OFF";if(soundOn)buttonSound()};
 startButton.onclick=startGame;aceButton.onclick=()=>answer("ACE");maxButton.onclick=()=>answer("MAX");nextButton.onclick=nextPhoto;
 presentationButton.onclick=enterPresentation;presentationNext.onclick=nextPresentation;exitPresentation.onclick=exitPresentationMode;changeButton.onclick=changePictures;
