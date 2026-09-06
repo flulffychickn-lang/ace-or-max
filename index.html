@@ -200,146 +200,157 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 <script>
 (() => {
 "use strict";
-const photoInput=document.getElementById("photoInput"),photoList=document.getElementById("photoList"),info=document.getElementById("info"),startButton=document.getElementById("startButton"),setup=document.getElementById("setup"),game=document.getElementById("game"),gameImage=document.getElementById("gameImage"),aceButton=document.getElementById("aceButton"),maxButton=document.getElementById("maxButton"),nextButton=document.getElementById("nextButton"),message=document.getElementById("message"),presentationButton=document.getElementById("presentationButton"),changeButton=document.getElementById("changeButton"),presentation=document.getElementById("presentation"),presentationImage=document.getElementById("presentationImage"),presentationNext=document.getElementById("presentationNext"),exitPresentation=document.getElementById("exitPresentation"),backgroundMusic=document.getElementById("backgroundMusic"),musicButton=document.getElementById("musicButton"),soundButton=document.getElementById("soundButton"),presentationAce=document.getElementById("presentationAce"),presentationMax=document.getElementById("presentationMax"),answerBanner=document.getElementById("answerBanner");
-let photos=[],order=[],current=0,answered=false,presentationRevealed=false,soundOn=true,musicOn=false,audioContext=null;
 
-function cleanup(){photos.forEach(p=>URL.revokeObjectURL(p.url))}
+const aceInput=document.getElementById("aceInput"), maxInput=document.getElementById("maxInput"),
+importInput=document.getElementById("importInput"), photoList=document.getElementById("photoList"),
+aceCount=document.getElementById("aceCount"), maxCount=document.getElementById("maxCount"),
+info=document.getElementById("info"), storageStatus=document.getElementById("storageStatus"),
+startButton=document.getElementById("startButton"), exportButton=document.getElementById("exportButton"),
+clearButton=document.getElementById("clearButton"), setup=document.getElementById("setup"),
+game=document.getElementById("game"), gameImage=document.getElementById("gameImage"),
+aceButton=document.getElementById("aceButton"), maxButton=document.getElementById("maxButton"),
+nextButton=document.getElementById("nextButton"), message=document.getElementById("message"),
+presentationButton=document.getElementById("presentationButton"), changeButton=document.getElementById("changeButton"),
+presentation=document.getElementById("presentation"), presentationImage=document.getElementById("presentationImage"),
+presentationNext=document.getElementById("presentationNext"), exitPresentation=document.getElementById("exitPresentation"),
+backgroundMusic=document.getElementById("backgroundMusic"), musicButton=document.getElementById("musicButton"),
+soundButton=document.getElementById("soundButton"), presentationAce=document.getElementById("presentationAce"),
+presentationMax=document.getElementById("presentationMax"), answerBanner=document.getElementById("answerBanner");
+
+let photos=[],order=[],current=0,answered=false,presentationRevealed=false;
+let soundOn=true,musicOn=false,audioContext=null,db=null;
+const DB_NAME="aceOrMaxEventDB",DB_VERSION=1,STORE="photos";
+
+function setStatus(text,good=false){storageStatus.textContent=text;storageStatus.style.color=good?"var(--green)":"#dbe5f2"}
+function openDB(){return new Promise((resolve,reject)=>{
+  if(db){resolve(db);return}
+  const r=indexedDB.open(DB_NAME,DB_VERSION);
+  r.onupgradeneeded=e=>{if(!e.target.result.objectStoreNames.contains(STORE))e.target.result.createObjectStore(STORE,{keyPath:"id",autoIncrement:true})};
+  r.onsuccess=e=>{db=e.target.result;resolve(db)};r.onerror=()=>reject(r.error)
+})}
+function tx(mode,fn){return openDB().then(d=>new Promise((resolve,reject)=>{
+  const t=d.transaction(STORE,mode),s=t.objectStore(STORE);let result;
+  try{result=fn(s)}catch(e){reject(e);return}
+  t.oncomplete=()=>resolve(result);t.onerror=()=>reject(t.error)
+}))}
+function getAll(){return tx("readonly",s=>new Promise((res,rej)=>{const r=s.getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error)}))}
+function addSaved(x){return tx("readwrite",s=>s.add(x))}
+function clearSaved(){return tx("readwrite",s=>s.clear())}
+function removeSaved(id){return tx("readwrite",s=>s.delete(id))}
+function cleanupUrls(){photos.forEach(p=>p.url&&URL.revokeObjectURL(p.url))}
+function url(blob){return URL.createObjectURL(blob)}
+
+async function loadSaved(){
+  try{
+    const saved=await getAll();cleanupUrls();
+    photos=saved.map(r=>({id:r.id,name:r.name||"Picture",answer:r.answer,blob:r.blob,url:url(r.blob)}));
+    renderSetup();
+    setStatus(photos.length?"💾 Saved event loaded on this device.":"No event pictures saved yet.",!!photos.length);
+  }catch(e){setStatus("⚠️ Could not access local browser storage.")}
+}
+function renderSetup(){
+  const a=photos.filter(p=>p.answer==="ACE").length,m=photos.filter(p=>p.answer==="MAX").length;
+  aceCount.textContent=`${a} picture${a===1?"":"s"}`;maxCount.textContent=`${m} picture${m===1?"":"s"}`;
+  info.textContent=`${photos.length} picture${photos.length===1?"":"s"} saved`;
+  startButton.disabled=photos.length<2||a===0||m===0;photoList.innerHTML="";
+  photos.forEach((p,i)=>{
+    const item=document.createElement("div");item.className="photo-item";
+    const img=document.createElement("img");img.src=p.url;img.alt=p.name||`Picture ${i+1}`;
+    const rm=document.createElement("button");rm.className="remove-photo";rm.type="button";rm.textContent="✕";
+    rm.onclick=async()=>{await removeSaved(p.id);await loadSaved();buttonSound()};
+    const label=document.createElement("div");label.style.cssText="font-weight:900;font-size:13px;margin-top:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";label.textContent=p.name||`Picture ${i+1}`;
+    const badge=document.createElement("div");badge.style.cssText="margin-top:5px;font-weight:1000";badge.textContent=p.answer==="ACE"?"🔵 ACE":"🩷 MAX";badge.style.color=p.answer==="ACE"?"var(--blue)":"var(--pink)";
+    item.append(img,rm,label,badge);photoList.appendChild(item)
+  })
+}
+async function addFiles(files,answer){
+  const list=Array.from(files||[]).filter(f=>f.type.startsWith("image/"));if(!list.length)return;
+  setStatus("💾 Saving pictures to this device...");
+  for(const f of list)await addSaved({name:f.name,answer,blob:f});
+  await loadSaved();setStatus("💾 Saved locally — not uploaded to GitHub.",true);buttonSound()
+}
+aceInput.onchange=async()=>{await addFiles(aceInput.files,"ACE");aceInput.value=""};
+maxInput.onchange=async()=>{await addFiles(maxInput.files,"MAX");maxInput.value=""};
+
 function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function ensureAudio(){if(!audioContext)audioContext=new(window.AudioContext||window.webkitAudioContext)();if(audioContext.state==="suspended")audioContext.resume();return audioContext}
-function tone(freq,duration,type="sine",volume=.12,delay=0){if(!soundOn)return;const c=ensureAudio(),n=c.currentTime+delay,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(freq,n);g.gain.setValueAtTime(.0001,n);g.gain.exponentialRampToValueAtTime(volume,n+.015);g.gain.exponentialRampToValueAtTime(.0001,n+duration);o.connect(g);g.connect(c.destination);o.start(n);o.stop(n+duration+.03)}
+function tone(f,d,type="sine",v=.12,delay=0){if(!soundOn)return;const c=ensureAudio(),n=c.currentTime+delay,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(f,n);g.gain.setValueAtTime(.0001,n);g.gain.exponentialRampToValueAtTime(v,n+.015);g.gain.exponentialRampToValueAtTime(.0001,n+d);o.connect(g);g.connect(c.destination);o.start(n);o.stop(n+d+.03)}
 function buttonSound(){tone(520,.08,"square",.07);tone(780,.1,"square",.05,.06)}
 function correctSound(){tone(523,.12,"triangle",.13);tone(659,.12,"triangle",.13,.1);tone(784,.2,"triangle",.14,.2)}
 function wrongSound(){tone(330,.14,"sawtooth",.09);tone(240,.22,"sawtooth",.08,.13)}
-async function startMusic(){try{ensureAudio();backgroundMusic.volume=.2;await backgroundMusic.play();musicOn=true;musicButton.textContent="🎵 MUSIC ON"}catch(e){musicOn=false;musicButton.textContent="🎵 MUSIC OFF"}}
+async function startMusic(){try{ensureAudio();backgroundMusic.volume=.2;await backgroundMusic.play();musicOn=true;musicButton.textContent="🎵 MUSIC ON"}catch(e){musicOn=false}}
 function stopMusic(){backgroundMusic.pause();backgroundMusic.currentTime=0;musicOn=false;musicButton.textContent="🎵 MUSIC OFF"}
-function updateSetup(){info.textContent=`${photos.length} picture${photos.length===1?"":"s"} added`;startButton.disabled=photos.length<2||photos.some(p=>!p.answer);photoList.innerHTML="";photos.forEach((p,i)=>{const item=document.createElement("div");item.className="photo-item";const img=document.createElement("img");img.src=p.url;img.alt=`Picture ${i+1}`;const select=document.createElement("select");select.setAttribute("aria-label",`Answer for picture ${i+1}`);[["","Choose answer..."],["ACE","ACE"],["MAX","MAX"]].forEach(([v,l])=>{const o=document.createElement("option");o.value=v;o.textContent=l;select.appendChild(o)});select.value=p.answer;select.addEventListener("change",()=>{p.answer=select.value;buttonSound();updateStartState()});item.append(img,select);photoList.appendChild(item)})}
-function updateStartState(){startButton.disabled=photos.length<2||photos.some(p=>!p.answer)}
-photoInput.addEventListener("change",()=>{cleanup();photos=Array.from(photoInput.files||[]).filter(f=>f.type.startsWith("image/")).map(file=>({url:URL.createObjectURL(file),answer:""}));updateSetup();if(photos.length)buttonSound()})
+
 function startGame(){
-  if(photos.length<2||photos.some(p=>!p.answer))return;
-  ensureAudio();
-  startMusic();
-  order=shuffle(photos.map((_,i)=>i));
-  current=0;
-  setup.classList.add("hidden");
-  game.classList.remove("hidden");
-  showCurrent();
-  updateNextButton();
-  buttonSound();
+  if(startButton.disabled)return;ensureAudio();startMusic();order=shuffle(photos.map((_,i)=>i));current=0;
+  setup.classList.add("hidden");game.classList.remove("hidden");showCurrent();buttonSound()
 }
 function showCurrent(){
-  answered=false;
-  presentationRevealed=false;
-  resetPresentationReveal();
-  aceButton.classList.remove("correct","wrong");
-  maxButton.classList.remove("correct","wrong");
-  gameImage.src=photos[order[current]].url;
-  message.textContent="Look at the photo and choose ACE or MAX.";
-  updateNextButton();
+  answered=false;presentationRevealed=false;resetPresentationReveal();
+  aceButton.classList.remove("correct","wrong");maxButton.classList.remove("correct","wrong");
+  gameImage.src=photos[order[current]].url;message.textContent="Look at the photo and choose ACE or MAX.";updateNext()
 }
-function answer(choice){if(answered)return;ensureAudio();answered=true;const p=photos[order[current]],correct=choice===p.answer;if(choice==="ACE"){aceButton.classList.add(correct?"correct":"wrong");if(!correct)maxButton.classList.add("correct")}else{maxButton.classList.add(correct?"correct":"wrong");if(!correct)aceButton.classList.add("correct")}if(correct){message.textContent="🎉 CORRECT! Nice guess!";correctSound()}else{message.textContent=`❌ WRONG! The answer is ${p.answer}.`;wrongSound()}}
-function updateNextButton(){
-  const atLast = current >= order.length - 1;
-  nextButton.disabled = atLast;
-  nextButton.textContent = atLast ? "🏁 LAST PHOTO" : "➡️ NEXT PHOTO";
-  updatePresentationButton();
+function answer(choice){
+  if(answered)return;answered=true;const correct=choice===photos[order[current]].answer;
+  const chosen=choice==="ACE"?aceButton:maxButton,other=choice==="ACE"?maxButton:aceButton;
+  chosen.classList.add(correct?"correct":"wrong");if(!correct)other.classList.add("correct");
+  message.textContent=correct?"🎉 CORRECT! Nice guess!":`❌ WRONG! The answer is ${photos[order[current]].answer}.`;
+  ensureAudio();correct?correctSound():wrongSound()
 }
+function updateNext(){
+  const last=current>=order.length-1;nextButton.disabled=last;nextButton.textContent=last?"🏁 LAST PHOTO":"➡️ NEXT PHOTO";updatePresentationButton()
+}
+function nextPhoto(){if(current>=order.length-1)return;current++;showCurrent();syncPresentation();buttonSound()}
 
-function nextPhoto(){
-  if(current >= order.length - 1){
-    message.textContent = "🏁 You have reached the last photo!";
-    return;
-  }
-  ensureAudio();
-  current++;
-  showCurrent();
-  buttonSound();
-  syncPresentation();
-  updateNextButton();
-}
 async function enterPresentation(){
-  ensureAudio();
-  startMusic();
-  presentation.classList.add("active");
-  document.body.style.overflow="hidden";
-  syncPresentation();
-  buttonSound();
-  try{
-    if(document.documentElement.requestFullscreen && !document.fullscreenElement){
-      await document.documentElement.requestFullscreen();
-    }
-  }catch(e){}
-  try{
-    if(screen.orientation && screen.orientation.lock){
-      await screen.orientation.lock("landscape");
-    }
-  }catch(e){}
+  ensureAudio();startMusic();presentation.classList.add("active");document.body.style.overflow="hidden";syncPresentation();buttonSound();
+  try{if(document.documentElement.requestFullscreen&&!document.fullscreenElement)await document.documentElement.requestFullscreen()}catch(e){}
+  try{if(screen.orientation?.lock)await screen.orientation.lock("landscape")}catch(e){}
 }
-function syncPresentation(){
-  if(order.length){
-    presentationImage.src=photos[order[current]].url;
-    resetPresentationReveal();
-  }
-}
-function resetPresentationReveal(){
-  presentationRevealed=false;
-  presentationAce.classList.remove("answer","dim");
-  presentationMax.classList.remove("answer","dim");
-  answerBanner.classList.add("hidden");
-  updatePresentationButton();
-}
+function syncPresentation(){if(order.length){presentationImage.src=photos[order[current]].url;resetPresentationReveal()}}
+function resetPresentationReveal(){presentationRevealed=false;presentationAce.classList.remove("answer","dim");presentationMax.classList.remove("answer","dim");answerBanner.classList.add("hidden");updatePresentationButton()}
 function revealPresentationAnswer(){
-  if(!order.length)return;
-  const answer=photos[order[current]].answer;
-  presentationRevealed=true;
-  answerBanner.textContent=`🎉 THE ANSWER IS ${answer}!`;
-  answerBanner.classList.remove("hidden");
-  if(answer==="ACE"){
-    presentationAce.classList.add("answer");
-    presentationMax.classList.add("dim");
-  }else{
-    presentationMax.classList.add("answer");
-    presentationAce.classList.add("dim");
-  }
-  presentationNext.textContent=current >= order.length-1 ? "🏁 LAST PHOTO" : "➡️ NEXT PHOTO";
-  ensureAudio();
-  correctSound();
+  const answer=photos[order[current]].answer;presentationRevealed=true;answerBanner.textContent=`🎉 THE ANSWER IS ${answer}!`;answerBanner.classList.remove("hidden");
+  const isAce=answer==="ACE";presentationAce.classList.toggle("answer",isAce);presentationAce.classList.toggle("dim",!isAce);presentationMax.classList.toggle("answer",!isAce);presentationMax.classList.toggle("dim",isAce);
+  presentationNext.textContent=current>=order.length-1?"🏁 LAST PHOTO":"➡️ NEXT PHOTO";correctSound()
 }
 function updatePresentationButton(){
   if(!order.length)return;
-  if(!presentationRevealed){
-    presentationNext.disabled=false;
-    presentationNext.textContent="🎯 REVEAL ANSWER";
-  }else if(current >= order.length-1){
-    presentationNext.disabled=true;
-    presentationNext.textContent="🏁 LAST PHOTO";
-  }else{
-    presentationNext.disabled=false;
-    presentationNext.textContent="➡️ NEXT PHOTO";
-  }
+  presentationNext.disabled=presentationRevealed&&current>=order.length-1;
+  presentationNext.textContent=!presentationRevealed?"🎯 REVEAL ANSWER":(current>=order.length-1?"🏁 LAST PHOTO":"➡️ NEXT PHOTO")
 }
-function nextPresentation(){
-  if(!presentationRevealed){
-    revealPresentationAnswer();
-    return;
-  }
-  if(current >= order.length - 1)return;
-  nextPhoto();
-  syncPresentation();
-}
-async function exitPresentationMode(){
-  presentation.classList.remove("active");
-  document.body.style.overflow="";
+function nextPresentation(){if(!presentationRevealed)revealPresentationAnswer();else if(current<order.length-1)nextPhoto()}
+async function exitPresentationMode(){presentation.classList.remove("active");document.body.style.overflow="";try{if(document.fullscreenElement)await document.exitFullscreen()}catch(e){}buttonSound()}
+
+async function changePictures(){game.classList.add("hidden");setup.classList.remove("hidden");await loadSaved();buttonSound()}
+musicButton.onclick=async()=>{if(musicOn){stopMusic();buttonSound()}else await startMusic()};
+soundButton.onclick=()=>{soundOn=!soundOn;soundButton.textContent=soundOn?"🔊 SOUND ON":"🔇 SOUND OFF";if(soundOn)buttonSound()};
+startButton.onclick=startGame;aceButton.onclick=()=>answer("ACE");maxButton.onclick=()=>answer("MAX");nextButton.onclick=nextPhoto;
+presentationButton.onclick=enterPresentation;presentationNext.onclick=nextPresentation;exitPresentation.onclick=exitPresentationMode;changeButton.onclick=changePictures;
+
+function blobToDataURL(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(blob)})}
+function dataURLToBlob(x){const [h,b]=x.split(",");const mime=(h.match(/data:(.*?);base64/)||[])[1]||"application/octet-stream",s=atob(b),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return new Blob([a],{type:mime})}
+exportButton.onclick=async()=>{
+  if(!photos.length){setStatus("Add pictures before exporting.");return}
+  setStatus("📦 Preparing event backup...");
   try{
-    if(document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
-  }catch(e){}
-  buttonSound();
-}
-function changePictures(){if(!confirm("Remove the current pictures and choose new ones?"))return;cleanup();photos=[];order=[];current=0;photoInput.value="";game.classList.add("hidden");setup.classList.remove("hidden");updateSetup();buttonSound()}
-musicButton.addEventListener("click",async()=>{if(musicOn){stopMusic();buttonSound()}else await startMusic()});
-soundButton.addEventListener("click",()=>{soundOn=!soundOn;soundButton.textContent=soundOn?"🔊 SOUND ON":"🔇 SOUND OFF";if(soundOn)buttonSound()});
-startButton.addEventListener("click",startGame);aceButton.addEventListener("click",()=>answer("ACE"));maxButton.addEventListener("click",()=>answer("MAX"));nextButton.addEventListener("click",nextPhoto);presentationButton.addEventListener("click",enterPresentation);presentationNext.addEventListener("click",nextPresentation);exitPresentation.addEventListener("click",exitPresentationMode);changeButton.addEventListener("click",changePictures);
-window.addEventListener("beforeunload",()=>{cleanup();stopMusic()});updateSetup();
+    const data=[];for(const p of photos)data.push({name:p.name,answer:p.answer,dataUrl:await blobToDataURL(p.blob)});
+    const b=new Blob([JSON.stringify({app:"ACE OR MAX? WHO'S WHO?",version:1,photos:data})],{type:"application/json"});
+    const u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="ace-or-max-event-backup.json";a.click();URL.revokeObjectURL(u);setStatus("📦 Event backup exported.",true);buttonSound()
+  }catch(e){setStatus("⚠️ Export failed.")}
+};
+importInput.onchange=async()=>{
+  const file=importInput.files[0];if(!file)return;setStatus("📥 Importing event...");
+  try{
+    const p=JSON.parse(await file.text());if(!Array.isArray(p.photos))throw 0;
+    await clearSaved();for(const x of p.photos)if(x.dataUrl&&x.answer)await addSaved({name:x.name||"Picture",answer:x.answer,blob:dataURLToBlob(x.dataUrl)});
+    await loadSaved();setStatus(`📥 Event imported: ${photos.length} pictures.`,true);buttonSound()
+  }catch(e){setStatus("⚠️ Invalid event backup file.")}
+  importInput.value=""
+};
+clearButton.onclick=async()=>{if(!photos.length)return;if(!confirm("Clear all saved event pictures from this device?"))return;await clearSaved();cleanupUrls();photos=[];order=[];current=0;renderSetup();setStatus("🗑️ Event pictures cleared.");buttonSound()};
+
+loadSaved();
 })();
 </script>
 </body>
