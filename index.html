@@ -116,35 +116,90 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 @media(max-width:700px){.event-columns{grid-template-columns:1fr}.event-box{padding:13px}.event-box h3{font-size:22px}.event-actions .btn,.event-actions .small-btn{width:100%}}
 
 
-/* Smart photo sizing */
-.photo-stage,.presentation-photo{display:flex;align-items:center;justify-content:center;overflow:hidden;background:#111827}
-.photo-stage img,.presentation-photo img{width:100%;height:100%;object-fit:contain;display:block}
-.presentation-photo.landscape{width:min(94vw,1200px)}
-.presentation-photo.portrait{width:min(55vw,650px)}
-@media(max-width:700px) and (orientation:landscape){
-  .presentation-photo.landscape{width:min(92vw,1200px);height:65svh}
-  .presentation-photo.portrait{width:min(48vw,600px);height:65svh}
+/* Final mobile fixes */
+.volume-control{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-height:40px;
+  padding:6px 10px;
+  border:2px solid rgba(255,255,255,.2);
+  border-radius:999px;
+  background:rgba(15,20,35,.8);
+  color:#fff;
+  font-weight:1000;
+  cursor:pointer;
 }
-
-
-.volume-control{display:inline-flex;align-items:center;gap:7px;color:#fff;font-weight:900;font-size:14px;padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.12)}
-.volume-control input{width:130px;accent-color:#ffd84d;cursor:pointer}
-@media(max-width:700px){.volume-control{padding:6px 8px}.volume-control input{width:105px}}
-
-
-.audio-bar{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px}
-.volume-control{display:inline-flex!important;visibility:visible!important;opacity:1!important;align-items:center;gap:7px;color:#fff;font-weight:900;font-size:14px;padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.12);min-width:150px}
-.volume-control input{display:block!important;width:130px;height:28px;accent-color:#ffd84d;cursor:pointer}
-@media(max-width:700px){
-  .audio-bar{width:100%;padding:4px 6px;gap:7px}
-  .volume-control{width:min(94vw,360px);justify-content:center;min-width:0;padding:6px 9px}
-  .volume-control input{width:min(70vw,260px);height:32px}
+.volume-control input{
+  display:block;
+  width:130px;
+  height:28px;
+  margin:0;
+  accent-color:var(--yellow);
+  cursor:pointer;
 }
-
-
+.photo-list{
+  position:relative;
+  z-index:1;
+  width:100%;
+  min-width:0;
+}
+.photo-item{
+  position:relative;
+  min-width:0;
+  overflow:hidden;
+}
+.photo-item img{
+  width:100%;
+  max-width:100%;
+  height:auto;
+  aspect-ratio:1/1;
+  object-fit:cover;
+}
+.event-actions{
+  position:relative;
+  z-index:10;
+  clear:both;
+  width:100%;
+}
+.event-actions button,.event-actions label{
+  position:relative;
+  z-index:11;
+  pointer-events:auto;
+}
 @media(max-width:700px){
-  .event-actions{width:100%;padding:0 4px}
-  .event-actions .small-btn,.event-actions .btn{box-sizing:border-box;min-height:48px}
+  body{overflow-x:hidden;overflow-y:auto}
+  .audio-bar{width:100%;padding:4px 8px;gap:7px}
+  .volume-control{width:min(94vw,360px)}
+  .volume-control input{width:min(68vw,250px)}
+  .photo-list{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    margin:18px auto;
+    max-width:100%;
+  }
+  .photo-item{
+    width:100%;
+    padding:6px;
+  }
+  .photo-item img{
+    aspect-ratio:4/5;
+  }
+  .event-actions{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:9px;
+    margin-top:12px;
+    padding-bottom:12px;
+  }
+  .event-actions .btn,.event-actions .small-btn,.event-actions label{
+    width:100%;
+    min-height:48px;
+    margin:0;
+    box-sizing:border-box;
+  }
 }
 
 </style>
@@ -157,7 +212,7 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 
 <audio id="backgroundMusic" src="ace_or_max_kids_game_loop.wav" loop preload="auto"></audio>
 <div class="audio-bar">
-<button class="audio-btn" id="musicButton" type="button">🎵 MUSIC OFF</button>
+<button class="audio-btn" id="musicButton" type="button">🎵 MUSIC OFF</button><label class="volume-control" for="musicVolume">🔊 <input id="musicVolume" type="range" min="0" max="100" value="20" aria-label="Music volume"></label>
 <button class="audio-btn" id="soundButton" type="button">🔊 SOUND ON</button>
 </div>
 
@@ -320,15 +375,7 @@ function startGame(){
 function showCurrent(){
   answered=false;presentationRevealed=false;resetPresentationReveal();
   aceButton.classList.remove("correct","wrong");maxButton.classList.remove("correct","wrong");
-  gameImage.onload=()=>{
-  const box=gameImage.parentElement;
-  box.classList.remove("landscape","portrait");
-  if(gameImage.naturalWidth && gameImage.naturalHeight)
-    box.classList.add(gameImage.naturalWidth>=gameImage.naturalHeight?"landscape":"portrait");
-};
-gameImage.src=photos[order[current]].url;
-message.textContent="Look at the photo and choose ACE or MAX.";
-updateNext()
+  gameImage.src=photos[order[current]].url;message.textContent="Look at the photo and choose ACE or MAX.";updateNext()
 }
 function answer(choice){
   if(answered)return;answered=true;const correct=choice===photos[order[current]].answer;
@@ -347,21 +394,7 @@ async function enterPresentation(){
   try{if(document.documentElement.requestFullscreen&&!document.fullscreenElement)await document.documentElement.requestFullscreen()}catch(e){}
   try{if(screen.orientation?.lock)await screen.orientation.lock("landscape")}catch(e){}
 }
-function updatePresentationImageShape(){
-  const box=presentationImage.parentElement;
-  box.classList.remove("landscape","portrait");
-  if(presentationImage.naturalWidth && presentationImage.naturalHeight){
-    box.classList.add(presentationImage.naturalWidth>=presentationImage.naturalHeight?"landscape":"portrait");
-  }
-}
-function syncPresentation(){
-  if(order.length){
-    presentationImage.onload=updatePresentationImageShape;
-    presentationImage.src=photos[order[current]].url;
-    updatePresentationImageShape();
-    resetPresentationReveal();
-  }
-}
+function syncPresentation(){if(order.length){presentationImage.src=photos[order[current]].url;resetPresentationReveal()}}
 function resetPresentationReveal(){presentationRevealed=false;presentationAce.classList.remove("answer","dim");presentationMax.classList.remove("answer","dim");answerBanner.classList.add("hidden");updatePresentationButton()}
 function revealPresentationAnswer(){
   const answer=photos[order[current]].answer;presentationRevealed=true;answerBanner.textContent=`🎉 THE ANSWER IS ${answer}!`;answerBanner.classList.remove("hidden");
@@ -391,11 +424,7 @@ exportButton.onclick=async()=>{
   try{
     const data=[];for(const p of photos)data.push({name:p.name,answer:p.answer,dataUrl:await blobToDataURL(p.blob)});
     const b=new Blob([JSON.stringify({app:"ACE OR MAX? WHO'S WHO?",version:1,photos:data})],{type:"application/json"});
-    const u=URL.createObjectURL(b),a=document.createElement("a");
-a.href=u;a.download="ace-or-max-event-backup.json";a.style.display="none";
-document.body.appendChild(a);a.click();a.remove();
-setTimeout(()=>URL.revokeObjectURL(u),1000);
-setStatus("📦 Event backup exported.",true);buttonSound()
+    const u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="ace-or-max-event-backup.json";a.style.display="none";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);setStatus("📦 Event backup exported.",true);buttonSound()
   }catch(e){setStatus("⚠️ Export failed.")}
 };
 importButton.onclick=()=>importInput.click();
@@ -404,10 +433,9 @@ importInput.onchange=async()=>{
   if(!file)return;
   setStatus("📥 Importing event...");
   try{
-    const text=await file.text();
-    const p=JSON.parse(text);
-    if(!p || !Array.isArray(p.photos))throw new Error("Invalid backup");
-    const imported=p.photos.filter(x=>x && x.dataUrl && (x.answer==="ACE"||x.answer==="MAX"));
+    const p=JSON.parse(await file.text());
+    if(!p||!Array.isArray(p.photos))throw new Error("Invalid backup");
+    const imported=p.photos.filter(x=>x&&x.dataUrl&&(x.answer==="ACE"||x.answer==="MAX"));
     if(!imported.length)throw new Error("No photos");
     await clearSaved();
     for(const x of imported){
@@ -416,9 +444,7 @@ importInput.onchange=async()=>{
     await loadSaved();
     setStatus(`📥 Event imported: ${photos.length} pictures.`,true);
     buttonSound();
-  }catch(e){
-    setStatus("⚠️ Invalid event backup file.");
-  }
+  }catch(e){setStatus("⚠️ Invalid event backup file.")}
   importInput.value="";
 };
 clearButton.onclick=async()=>{if(!photos.length)return;if(!confirm("Clear all saved event pictures from this device?"))return;await clearSaved();cleanupUrls();photos=[];order=[];current=0;renderSetup();setStatus("🗑️ Event pictures cleared.");buttonSound()};
