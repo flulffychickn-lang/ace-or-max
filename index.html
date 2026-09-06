@@ -115,6 +115,22 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .status{min-height:24px;margin-top:10px;font-weight:900}
 @media(max-width:700px){.event-columns{grid-template-columns:1fr}.event-box{padding:13px}.event-box h3{font-size:22px}.event-actions .btn,.event-actions .small-btn{width:100%}}
 
+
+/* Smart photo sizing */
+.photo-stage,.presentation-photo{display:flex;align-items:center;justify-content:center;overflow:hidden;background:#111827}
+.photo-stage img,.presentation-photo img{width:100%;height:100%;object-fit:contain;display:block}
+.presentation-photo.landscape{width:min(94vw,1200px)}
+.presentation-photo.portrait{width:min(55vw,650px)}
+@media(max-width:700px) and (orientation:landscape){
+  .presentation-photo.landscape{width:min(92vw,1200px);height:65svh}
+  .presentation-photo.portrait{width:min(48vw,600px);height:65svh}
+}
+
+
+.volume-control{display:inline-flex;align-items:center;gap:7px;color:#fff;font-weight:900;font-size:14px;padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.12)}
+.volume-control input{width:130px;accent-color:#ffd84d;cursor:pointer}
+@media(max-width:700px){.volume-control{padding:6px 8px}.volume-control input{width:105px}}
+
 </style>
 </head>
 <body>
@@ -214,7 +230,7 @@ presentationButton=document.getElementById("presentationButton"), changeButton=d
 presentation=document.getElementById("presentation"), presentationImage=document.getElementById("presentationImage"),
 presentationNext=document.getElementById("presentationNext"), exitPresentation=document.getElementById("exitPresentation"),
 backgroundMusic=document.getElementById("backgroundMusic"), musicButton=document.getElementById("musicButton"),
-soundButton=document.getElementById("soundButton"), presentationAce=document.getElementById("presentationAce"),
+soundButton=document.getElementById("soundButton"), musicVolume=document.getElementById("musicVolume"), presentationAce=document.getElementById("presentationAce"),
 presentationMax=document.getElementById("presentationMax"), answerBanner=document.getElementById("answerBanner");
 
 let photos=[],order=[],current=0,answered=false,presentationRevealed=false;
@@ -278,7 +294,7 @@ function tone(f,d,type="sine",v=.12,delay=0){if(!soundOn)return;const c=ensureAu
 function buttonSound(){tone(520,.08,"square",.07);tone(780,.1,"square",.05,.06)}
 function correctSound(){tone(523,.12,"triangle",.13);tone(659,.12,"triangle",.13,.1);tone(784,.2,"triangle",.14,.2)}
 function wrongSound(){tone(330,.14,"sawtooth",.09);tone(240,.22,"sawtooth",.08,.13)}
-async function startMusic(){try{ensureAudio();backgroundMusic.volume=.2;await backgroundMusic.play();musicOn=true;musicButton.textContent="🎵 MUSIC ON"}catch(e){musicOn=false}}
+async function startMusic(){try{ensureAudio();backgroundMusic.volume=Number(musicVolume.value)/100;await backgroundMusic.play();musicOn=true;musicButton.textContent="🎵 MUSIC ON"}catch(e){musicOn=false}}
 function stopMusic(){backgroundMusic.pause();backgroundMusic.currentTime=0;musicOn=false;musicButton.textContent="🎵 MUSIC OFF"}
 
 function startGame(){
@@ -288,7 +304,15 @@ function startGame(){
 function showCurrent(){
   answered=false;presentationRevealed=false;resetPresentationReveal();
   aceButton.classList.remove("correct","wrong");maxButton.classList.remove("correct","wrong");
-  gameImage.src=photos[order[current]].url;message.textContent="Look at the photo and choose ACE or MAX.";updateNext()
+  gameImage.onload=()=>{
+  const box=gameImage.parentElement;
+  box.classList.remove("landscape","portrait");
+  if(gameImage.naturalWidth && gameImage.naturalHeight)
+    box.classList.add(gameImage.naturalWidth>=gameImage.naturalHeight?"landscape":"portrait");
+};
+gameImage.src=photos[order[current]].url;
+message.textContent="Look at the photo and choose ACE or MAX.";
+updateNext()
 }
 function answer(choice){
   if(answered)return;answered=true;const correct=choice===photos[order[current]].answer;
@@ -307,7 +331,21 @@ async function enterPresentation(){
   try{if(document.documentElement.requestFullscreen&&!document.fullscreenElement)await document.documentElement.requestFullscreen()}catch(e){}
   try{if(screen.orientation?.lock)await screen.orientation.lock("landscape")}catch(e){}
 }
-function syncPresentation(){if(order.length){presentationImage.src=photos[order[current]].url;resetPresentationReveal()}}
+function updatePresentationImageShape(){
+  const box=presentationImage.parentElement;
+  box.classList.remove("landscape","portrait");
+  if(presentationImage.naturalWidth && presentationImage.naturalHeight){
+    box.classList.add(presentationImage.naturalWidth>=presentationImage.naturalHeight?"landscape":"portrait");
+  }
+}
+function syncPresentation(){
+  if(order.length){
+    presentationImage.onload=updatePresentationImageShape;
+    presentationImage.src=photos[order[current]].url;
+    updatePresentationImageShape();
+    resetPresentationReveal();
+  }
+}
 function resetPresentationReveal(){presentationRevealed=false;presentationAce.classList.remove("answer","dim");presentationMax.classList.remove("answer","dim");answerBanner.classList.add("hidden");updatePresentationButton()}
 function revealPresentationAnswer(){
   const answer=photos[order[current]].answer;presentationRevealed=true;answerBanner.textContent=`🎉 THE ANSWER IS ${answer}!`;answerBanner.classList.remove("hidden");
@@ -324,6 +362,7 @@ async function exitPresentationMode(){presentation.classList.remove("active");do
 
 async function changePictures(){game.classList.add("hidden");setup.classList.remove("hidden");await loadSaved();buttonSound()}
 musicButton.onclick=async()=>{if(musicOn){stopMusic();buttonSound()}else await startMusic()};
+musicVolume.oninput=()=>{backgroundMusic.volume=Number(musicVolume.value)/100};
 soundButton.onclick=()=>{soundOn=!soundOn;soundButton.textContent=soundOn?"🔊 SOUND ON":"🔇 SOUND OFF";if(soundOn)buttonSound()};
 startButton.onclick=startGame;aceButton.onclick=()=>answer("ACE");maxButton.onclick=()=>answer("MAX");nextButton.onclick=nextPhoto;
 presentationButton.onclick=enterPresentation;presentationNext.onclick=nextPresentation;exitPresentation.onclick=exitPresentationMode;changeButton.onclick=changePictures;
