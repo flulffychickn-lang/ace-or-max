@@ -100,6 +100,21 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   .presentation .next{min-height:42px;padding:8px 18px;font-size:15px}
 }
 
+
+.event-setup{max-width:950px;margin:auto}
+.event-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0}
+.event-box{background:#242d43;border:2px solid rgba(255,255,255,.12);border-radius:20px;padding:18px}
+.event-box h3{margin:0 0 12px;font-size:26px}
+.event-box.ace-box h3{color:var(--blue)}.event-box.max-box h3{color:var(--pink)}
+.event-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:18px}
+.small-btn{border:0;border-radius:13px;padding:11px 16px;font-weight:1000;cursor:pointer}
+.storage-note{font-size:14px;color:#cbd5e1;line-height:1.45;margin:14px auto;max-width:780px}
+.photo-list .photo-item{position:relative}
+.remove-photo{position:absolute;top:12px;right:12px;border:0;border-radius:999px;background:rgba(0,0,0,.78);color:#fff;width:30px;height:30px;font-weight:1000;cursor:pointer}
+.photo-count{font-size:14px;color:#dbe5f2;margin-top:8px}
+.status{min-height:24px;margin-top:10px;font-weight:900}
+@media(max-width:700px){.event-columns{grid-template-columns:1fr}.event-box{padding:13px}.event-box h3{font-size:22px}.event-actions .btn,.event-actions .small-btn{width:100%}}
+
 </style>
 </head>
 <body>
@@ -115,14 +130,49 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 </div>
 
 <main class="app">
+
 <section class="panel setup" id="setup">
-<h2>📷 ADD YOUR PICTURES</h2>
-<p>Add the pictures you want to use. Each picture can be assigned to <b>ACE</b> or <b>MAX</b>. The answer stays hidden in Presentation Mode.</p>
-<input class="file-input" type="file" id="photoInput" accept="image/*" multiple>
-<label class="file-label primary" for="photoInput">📷 ADD PICTURES</label>
-<div class="info" id="info">0 pictures added</div>
-<div class="photo-list" id="photoList"></div>
-<button class="btn green" id="startButton" disabled>🎬 START GAME</button>
+  <div class="event-setup">
+    <h2>⚙️ EVENT SETUP</h2>
+    <p>
+      Add the event pictures once. They are saved <b>only in this browser/device</b> and are
+      <b>not uploaded to GitHub</b>. On the event day, just open the game and start.
+    </p>
+
+    <div class="event-columns">
+      <div class="event-box ace-box">
+        <h3>🔵 ACE PICTURES</h3>
+        <input class="file-input" type="file" id="aceInput" accept="image/*" multiple>
+        <label class="file-label blue" for="aceInput">📷 ADD ACE PICTURES</label>
+        <div class="photo-count" id="aceCount">0 pictures</div>
+      </div>
+
+      <div class="event-box max-box">
+        <h3>🩷 MAX PICTURES</h3>
+        <input class="file-input" type="file" id="maxInput" accept="image/*" multiple>
+        <label class="file-label primary" for="maxInput">📷 ADD MAX PICTURES</label>
+        <div class="photo-count" id="maxCount">0 pictures</div>
+      </div>
+    </div>
+
+    <div class="info" id="info">0 pictures saved</div>
+    <div class="status" id="storageStatus"></div>
+    <div class="storage-note">
+      💾 Your pictures are stored locally using your browser's device storage.
+      Clearing the browser's website data, using a different browser/device, or private browsing
+      can remove the saved event. Use <b>EXPORT EVENT</b> if you want a backup.
+    </div>
+
+    <div class="photo-list" id="photoList"></div>
+
+    <div class="event-actions">
+      <button class="btn green" id="startButton" disabled>🎬 START GAME</button>
+      <button class="small-btn blue" id="exportButton">📤 EXPORT EVENT</button>
+      <label class="small-btn primary" for="importInput">📥 IMPORT EVENT</label>
+      <input class="file-input" type="file" id="importInput" accept=".json,application/json">
+      <button class="small-btn" id="clearButton">🗑️ CLEAR EVENT</button>
+    </div>
+  </div>
 </section>
 
 <section class="panel game hidden" id="game">
