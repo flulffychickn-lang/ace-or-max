@@ -131,6 +131,22 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .volume-control input{width:130px;accent-color:#ffd84d;cursor:pointer}
 @media(max-width:700px){.volume-control{padding:6px 8px}.volume-control input{width:105px}}
 
+
+.audio-bar{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px}
+.volume-control{display:inline-flex!important;visibility:visible!important;opacity:1!important;align-items:center;gap:7px;color:#fff;font-weight:900;font-size:14px;padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.12);min-width:150px}
+.volume-control input{display:block!important;width:130px;height:28px;accent-color:#ffd84d;cursor:pointer}
+@media(max-width:700px){
+  .audio-bar{width:100%;padding:4px 6px;gap:7px}
+  .volume-control{width:min(94vw,360px);justify-content:center;min-width:0;padding:6px 9px}
+  .volume-control input{width:min(70vw,260px);height:32px}
+}
+
+
+@media(max-width:700px){
+  .event-actions{width:100%;padding:0 4px}
+  .event-actions .small-btn,.event-actions .btn{box-sizing:border-box;min-height:48px}
+}
+
 </style>
 </head>
 <body>
@@ -221,7 +237,7 @@ const aceInput=document.getElementById("aceInput"), maxInput=document.getElement
 importInput=document.getElementById("importInput"), photoList=document.getElementById("photoList"),
 aceCount=document.getElementById("aceCount"), maxCount=document.getElementById("maxCount"),
 info=document.getElementById("info"), storageStatus=document.getElementById("storageStatus"),
-startButton=document.getElementById("startButton"), exportButton=document.getElementById("exportButton"),
+startButton=document.getElementById("startButton"), exportButton=document.getElementById("exportButton"), importButton=document.getElementById("importButton"),
 clearButton=document.getElementById("clearButton"), setup=document.getElementById("setup"),
 game=document.getElementById("game"), gameImage=document.getElementById("gameImage"),
 aceButton=document.getElementById("aceButton"), maxButton=document.getElementById("maxButton"),
@@ -375,17 +391,35 @@ exportButton.onclick=async()=>{
   try{
     const data=[];for(const p of photos)data.push({name:p.name,answer:p.answer,dataUrl:await blobToDataURL(p.blob)});
     const b=new Blob([JSON.stringify({app:"ACE OR MAX? WHO'S WHO?",version:1,photos:data})],{type:"application/json"});
-    const u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="ace-or-max-event-backup.json";a.click();URL.revokeObjectURL(u);setStatus("📦 Event backup exported.",true);buttonSound()
+    const u=URL.createObjectURL(b),a=document.createElement("a");
+a.href=u;a.download="ace-or-max-event-backup.json";a.style.display="none";
+document.body.appendChild(a);a.click();a.remove();
+setTimeout(()=>URL.revokeObjectURL(u),1000);
+setStatus("📦 Event backup exported.",true);buttonSound()
   }catch(e){setStatus("⚠️ Export failed.")}
 };
+importButton.onclick=()=>importInput.click();
 importInput.onchange=async()=>{
-  const file=importInput.files[0];if(!file)return;setStatus("📥 Importing event...");
+  const file=importInput.files&&importInput.files[0];
+  if(!file)return;
+  setStatus("📥 Importing event...");
   try{
-    const p=JSON.parse(await file.text());if(!Array.isArray(p.photos))throw 0;
-    await clearSaved();for(const x of p.photos)if(x.dataUrl&&x.answer)await addSaved({name:x.name||"Picture",answer:x.answer,blob:dataURLToBlob(x.dataUrl)});
-    await loadSaved();setStatus(`📥 Event imported: ${photos.length} pictures.`,true);buttonSound()
-  }catch(e){setStatus("⚠️ Invalid event backup file.")}
-  importInput.value=""
+    const text=await file.text();
+    const p=JSON.parse(text);
+    if(!p || !Array.isArray(p.photos))throw new Error("Invalid backup");
+    const imported=p.photos.filter(x=>x && x.dataUrl && (x.answer==="ACE"||x.answer==="MAX"));
+    if(!imported.length)throw new Error("No photos");
+    await clearSaved();
+    for(const x of imported){
+      await addSaved({name:x.name||"Picture",answer:x.answer,blob:dataURLToBlob(x.dataUrl)});
+    }
+    await loadSaved();
+    setStatus(`📥 Event imported: ${photos.length} pictures.`,true);
+    buttonSound();
+  }catch(e){
+    setStatus("⚠️ Invalid event backup file.");
+  }
+  importInput.value="";
 };
 clearButton.onclick=async()=>{if(!photos.length)return;if(!confirm("Clear all saved event pictures from this device?"))return;await clearSaved();cleanupUrls();photos=[];order=[];current=0;renderSetup();setStatus("🗑️ Event pictures cleared.");buttonSound()};
 
