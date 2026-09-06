@@ -93,8 +93,8 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   header{display:none}
   .presentation{padding:5px 10px 8px}
   .presentation h2{font-size:clamp(20px,5vw,30px)}
-  .presentation-photo{width:min(82vw,1000px);height:58svh;aspect-ratio:auto;margin:4px auto}
-  .presentation-sides{width:min(82vw,1000px);gap:8px}
+  .presentation-photo{width:96vw;height:58svh;aspect-ratio:auto;margin:4px auto}
+  .presentation-sides{width:96vw;gap:8px}
   .presentation-side{font-size:clamp(20px,5vw,34px);padding:6px}
   .answer-banner{font-size:clamp(20px,4.5vw,30px)}
   .presentation .next{min-height:42px;padding:8px 18px;font-size:15px}
@@ -118,18 +118,10 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 
 
 /* Smart presentation sizing */
-.presentation-photo.landscape{
+.presentation-photo.landscape,.presentation-photo.portrait{
   width:min(1200px,94vw);
 }
-.presentation-photo.landscape img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-}
-.presentation-photo.portrait{
-  width:min(55vw,650px);
-}
-.presentation-photo.portrait img{
+.presentation-photo.landscape img,.presentation-photo.portrait img{
   width:100%;
   height:100%;
   object-fit:contain;
@@ -146,7 +138,7 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     height:62svh;
   }
   .presentation-photo.portrait{
-    width:min(48vw,600px);
+    width:96vw;
     height:62svh;
   }
 }
@@ -155,9 +147,18 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     width:94vw;
   }
   .presentation-photo.portrait{
-    width:72vw;
+    width:94vw;
   }
 }
+
+/* Presentation photo zoom controls */
+.zoom-controls{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px auto 2px;z-index:5}
+.zoom-controls button{border:2px solid rgba(255,255,255,.18);background:rgba(15,20,35,.92);color:#fff;border-radius:12px;min-width:52px;min-height:40px;padding:7px 12px;font-weight:1000;font-size:16px;cursor:pointer;touch-action:manipulation}
+.zoom-controls button:active{transform:scale(.96)}
+.zoom-controls span{min-width:52px;text-align:center;font-weight:1000;font-size:14px}
+.presentation-photo img{transform:scale(1);transform-origin:center center;transition:transform .18s ease}
+.presentation-photo.zoomed img{object-fit:contain}
+@media(max-width:700px){.zoom-controls{gap:6px;margin:4px auto 1px}.zoom-controls button{min-width:48px;min-height:38px;padding:6px 10px;font-size:14px}.zoom-controls span{font-size:13px}}
 
 /* Final mobile fixes */
 .volume-control{
@@ -298,7 +299,7 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     <div class="event-actions">
       <button class="btn green" id="startButton" disabled>🎬 START GAME</button>
       <button class="small-btn blue" id="exportButton">📤 EXPORT EVENT</button>
-      <label class="small-btn primary" for="importInput">📥 IMPORT EVENT</label>
+      <button class="small-btn primary" id="importButton" type="button">📥 IMPORT EVENT</button>
       <input class="file-input" type="file" id="importInput" accept=".json,application/json">
       <button class="small-btn" id="clearButton">🗑️ CLEAR EVENT</button>
     </div>
@@ -323,6 +324,7 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 <h2>🎈 ACE OR MAX? — WHO’S WHO?</h2>
 <div class="presentation-photo"><img id="presentationImage" alt="Photo to guess"></div>
 <div class="presentation-sides"><div class="presentation-side ace" id="presentationAce">ACE</div><div class="presentation-side max" id="presentationMax">MAX</div></div>
+<div class="zoom-controls" aria-label="Photo zoom controls"><button type="button" id="zoomOut">➖</button><button type="button" id="zoomFit">FIT</button><button type="button" id="zoomFill">FILL</button><button type="button" id="zoomIn">➕</button><span id="zoomLabel">100%</span></div>
 <div class="answer-banner hidden" id="answerBanner">🎉 THE ANSWER IS...</div>
 <button class="btn next" id="presentationNext">🎯 REVEAL ANSWER</button>
 </section>
@@ -345,9 +347,10 @@ presentation=document.getElementById("presentation"), presentationImage=document
 presentationNext=document.getElementById("presentationNext"), exitPresentation=document.getElementById("exitPresentation"),
 backgroundMusic=document.getElementById("backgroundMusic"), musicButton=document.getElementById("musicButton"),
 soundButton=document.getElementById("soundButton"), musicVolume=document.getElementById("musicVolume"), presentationAce=document.getElementById("presentationAce"),
-presentationMax=document.getElementById("presentationMax"), answerBanner=document.getElementById("answerBanner");
+presentationMax=document.getElementById("presentationMax"), answerBanner=document.getElementById("answerBanner"),
+zoomOut=document.getElementById("zoomOut"),zoomFit=document.getElementById("zoomFit"),zoomFill=document.getElementById("zoomFill"),zoomIn=document.getElementById("zoomIn"),zoomLabel=document.getElementById("zoomLabel");
 
-let photos=[],order=[],current=0,answered=false,presentationRevealed=false;
+let photos=[],order=[],current=0,answered=false,presentationRevealed=false,photoZoom=1,photoMode="fit";
 let soundOn=true,musicOn=false,audioContext=null,db=null,musicSource=null,musicGain=null;
 const DB_NAME="aceOrMaxEventDB",DB_VERSION=1,STORE="photos";
 
@@ -467,13 +470,32 @@ async function enterPresentation(){
   try{if(document.documentElement.requestFullscreen&&!document.fullscreenElement)await document.documentElement.requestFullscreen()}catch(e){}
   try{if(screen.orientation?.lock)await screen.orientation.lock("landscape")}catch(e){}
 }
+function applyPhotoZoom(){
+  presentationImage.style.transform=`scale(${photoZoom})`;
+  zoomLabel.textContent=`${Math.round(photoZoom*100)}%`;
+  presentationImage.parentElement.classList.toggle("zoomed",photoZoom>1);
+}
+function setPhotoMode(mode){
+  photoMode=mode;
+  if(mode==="fit"){photoZoom=1;presentationImage.style.objectFit="contain"}
+  else if(mode==="fill"){photoZoom=1;presentationImage.style.objectFit="cover"}
+  applyPhotoZoom();
+}
+function changePhotoZoom(delta){
+  photoMode="fit";
+  presentationImage.style.objectFit="contain";
+  photoZoom=Math.max(1,Math.min(2.4,Math.round((photoZoom+delta)*10)/10));
+  applyPhotoZoom();
+}
 function syncPresentation(){
   if(!order.length)return;
   const box=presentationImage.parentElement;
   const item=photos[order[current]];
+  photoZoom=1;photoMode="fit";
   presentationImage.onload=()=>{
     box.classList.remove("landscape","portrait");
     box.classList.add(presentationImage.naturalWidth>=presentationImage.naturalHeight?"landscape":"portrait");
+    setPhotoMode("fit");
   };
   presentationImage.src=item.url;
   resetPresentationReveal();
@@ -506,6 +528,7 @@ musicVolume.oninput=()=>{
 soundButton.onclick=()=>{soundOn=!soundOn;soundButton.textContent=soundOn?"🔊 SOUND ON":"🔇 SOUND OFF";if(soundOn)buttonSound()};
 startButton.onclick=startGame;aceButton.onclick=()=>answer("ACE");maxButton.onclick=()=>answer("MAX");nextButton.onclick=nextPhoto;
 presentationButton.onclick=enterPresentation;presentationNext.onclick=nextPresentation;exitPresentation.onclick=exitPresentationMode;changeButton.onclick=changePictures;
+zoomOut.onclick=()=>changePhotoZoom(-0.1);zoomIn.onclick=()=>changePhotoZoom(0.1);zoomFit.onclick=()=>setPhotoMode("fit");zoomFill.onclick=()=>setPhotoMode("fill");
 
 function blobToDataURL(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(blob)})}
 function dataURLToBlob(x){const [h,b]=x.split(",");const mime=(h.match(/data:(.*?);base64/)||[])[1]||"application/octet-stream",s=atob(b),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return new Blob([a],{type:mime})}
@@ -538,7 +561,19 @@ importInput.onchange=async()=>{
   }catch(e){setStatus("⚠️ Invalid event backup file.")}
   importInput.value="";
 };
-clearButton.onclick=async()=>{if(!photos.length)return;if(!confirm("Clear all saved event pictures from this device?"))return;await clearSaved();cleanupUrls();photos=[];order=[];current=0;renderSetup();setStatus("🗑️ Event pictures cleared.");buttonSound()};
+clearButton.onclick=async()=>{
+  if(!photos.length){aceInput.value="";maxInput.value="";importInput.value="";setStatus("No saved event pictures to clear.");return}
+  if(!confirm("Clear all saved event pictures from this device?"))return;
+  try{
+    await clearSaved();
+    cleanupUrls();
+    photos=[];order=[];current=0;
+    aceInput.value="";maxInput.value="";importInput.value="";
+    renderSetup();
+    setStatus("🗑️ Event pictures cleared.");
+    buttonSound();
+  }catch(e){setStatus("⚠️ Could not clear event pictures.")}
+};
 
 loadSaved();
 })();
