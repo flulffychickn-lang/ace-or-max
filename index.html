@@ -246,6 +246,42 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   }
 }
 
+
+/* Reveal celebration effects */
+.presentation-photo.reveal-shake{animation:revealShake .62s cubic-bezier(.36,.07,.19,.97) both}
+@keyframes revealShake{
+  0%,100%{transform:translate3d(0,0,0) rotate(0)}
+  10%,30%,50%,70%,90%{transform:translate3d(-8px,0,0) rotate(-.6deg)}
+  20%,40%,60%,80%{transform:translate3d(8px,0,0) rotate(.6deg)}
+}
+.presentation-side.answer{animation:answerPop .75s cubic-bezier(.2,.9,.2,1.2) both;position:relative;z-index:2}
+@keyframes answerPop{
+  0%{transform:scale(.92);filter:brightness(1)}
+  55%{transform:scale(1.08);filter:brightness(1.25)}
+  100%{transform:scale(1);filter:brightness(1.08)}
+}
+.answer-banner{
+  position:relative;z-index:4;
+  margin:6px auto 2px;
+  padding:12px 24px;
+  border-radius:18px;
+  background:var(--yellow);
+  color:#201900;
+  font-weight:1000;
+  text-align:center;
+  box-shadow:0 7px 0 rgba(0,0,0,.22),0 0 30px rgba(255,212,59,.45);
+  animation:answerBannerPop .7s cubic-bezier(.2,.9,.2,1.15) both;
+}
+@keyframes answerBannerPop{
+  0%{opacity:0;transform:translateY(18px) scale(.7) rotate(-2deg)}
+  65%{opacity:1;transform:translateY(-3px) scale(1.06) rotate(1deg)}
+  100%{opacity:1;transform:translateY(0) scale(1) rotate(0)}
+}
+#confettiCanvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:200}
+@media(prefers-reduced-motion:reduce){
+  .presentation-photo.reveal-shake,.presentation-side.answer,.answer-banner{animation:none!important}
+}
+
 </style>
 </head>
 <body>
@@ -320,6 +356,7 @@ button,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 </main>
 
 <section class="presentation" id="presentation">
+<canvas id="confettiCanvas" aria-hidden="true"></canvas>
 <button class="exit" id="exitPresentation">✕ EXIT</button>
 <h2>🎈 ACE OR MAX? — WHO’S WHO?</h2>
 <div class="presentation-photo"><img id="presentationImage" alt="Photo to guess"></div>
@@ -349,6 +386,7 @@ backgroundMusic=document.getElementById("backgroundMusic"), musicButton=document
 soundButton=document.getElementById("soundButton"), musicVolume=document.getElementById("musicVolume"), presentationAce=document.getElementById("presentationAce"),
 presentationMax=document.getElementById("presentationMax"), answerBanner=document.getElementById("answerBanner"),
 zoomOut=document.getElementById("zoomOut"),zoomFit=document.getElementById("zoomFit"),zoomFill=document.getElementById("zoomFill"),zoomIn=document.getElementById("zoomIn"),zoomLabel=document.getElementById("zoomLabel");
+const confettiCanvas=document.getElementById("confettiCanvas");
 
 let photos=[],order=[],current=0,answered=false,presentationRevealed=false,photoZoom=1,photoMode="fit";
 let soundOn=true,musicOn=false,audioContext=null,db=null,musicSource=null,musicGain=null;
@@ -500,11 +538,62 @@ function syncPresentation(){
   presentationImage.src=item.url;
   resetPresentationReveal();
 }
-function resetPresentationReveal(){presentationRevealed=false;presentationAce.classList.remove("answer","dim");presentationMax.classList.remove("answer","dim");answerBanner.classList.add("hidden");updatePresentationButton()}
+function resetPresentationReveal(){presentationRevealed=false;presentationAce.classList.remove("answer","dim");presentationMax.classList.remove("answer","dim");answerBanner.classList.add("hidden");presentationImage.parentElement.classList.remove("reveal-shake");if(confettiCanvas){const c=confettiCanvas.getContext("2d");if(c)c.clearRect(0,0,confettiCanvas.width,confettiCanvas.height)}updatePresentationButton()}
+function resizeConfetti(){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  confettiCanvas.width=Math.floor(innerWidth*dpr);
+  confettiCanvas.height=Math.floor(innerHeight*dpr);
+  confettiCanvas.style.width=innerWidth+"px";
+  confettiCanvas.style.height=innerHeight+"px";
+}
+resizeConfetti();
+window.addEventListener("resize",resizeConfetti);
+
+function celebrateReveal(){
+  const box=presentationImage.parentElement;
+  box.classList.remove("reveal-shake");
+  presentationAce.classList.remove("answer");
+  presentationMax.classList.remove("answer");
+  void box.offsetWidth;
+  box.classList.add("reveal-shake");
+  setTimeout(()=>box.classList.remove("reveal-shake"),700);
+
+  const ctx=confettiCanvas.getContext("2d");
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=confettiCanvas.width/dpr,h=confettiCanvas.height/dpr;
+  const pieces=[];
+  const shapes=["rect","circle"];
+  for(let i=0;i<150;i++){
+    pieces.push({
+      x:w/2+(Math.random()-.5)*w*.45, y:h*.28+Math.random()*25,
+      vx:(Math.random()-.5)*11, vy:Math.random()*-9-2,
+      size:5+Math.random()*8, rot:Math.random()*Math.PI, vr:(Math.random()-.5)*.25,
+      gravity:.24+Math.random()*.12, drag:.992,
+      life:0, max:75+Math.random()*45,
+      shape:shapes[Math.floor(Math.random()*shapes.length)],
+      color:["#ff3b72","#39a9ff","#ffd43b","#48d597","#ffffff"][Math.floor(Math.random()*5)]
+    });
+  }
+  let frame=0;
+  function draw(){
+    frame++;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+    let alive=false;
+    for(const p of pieces){
+      p.life++; if(p.life<p.max){alive=true;p.vx*=p.drag;p.vy+=p.gravity;p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;
+        const alpha=Math.max(0,1-p.life/p.max);ctx.save();ctx.globalAlpha=alpha;ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.color;
+        if(p.shape==="circle"){ctx.beginPath();ctx.arc(0,0,p.size*.55,0,Math.PI*2);ctx.fill()}else{ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size*.65)}
+        ctx.restore();
+      }
+    }
+    if(alive)requestAnimationFrame(draw);else ctx.clearRect(0,0,w,h);
+  }
+  draw();
+}
+
 function revealPresentationAnswer(){
   const answer=photos[order[current]].answer;presentationRevealed=true;answerBanner.textContent=`🎉 THE ANSWER IS ${answer}!`;answerBanner.classList.remove("hidden");
   const isAce=answer==="ACE";presentationAce.classList.toggle("answer",isAce);presentationAce.classList.toggle("dim",!isAce);presentationMax.classList.toggle("answer",!isAce);presentationMax.classList.toggle("dim",isAce);
-  presentationNext.textContent=current>=order.length-1?"🏁 LAST PHOTO":"➡️ NEXT PHOTO";correctSound()
+  presentationNext.textContent=current>=order.length-1?"🏁 LAST PHOTO":"➡️ NEXT PHOTO";correctSound();celebrateReveal()
 }
 function updatePresentationButton(){
   if(!order.length)return;
